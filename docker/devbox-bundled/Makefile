@@ -132,8 +132,9 @@ build-gpu: build
 		--build-arg BASE_IMAGE=base \
 		--tag flyte-devbox:gpu-latest .
 
-# Port map
-# 6443 - k8s API server
+# Port map. The k8s API (6443) is intentionally not published so the devbox can run alongside
+# another local cluster that already uses 6443 (for example an Armada kind cluster). Reach the
+# devbox cluster with: docker exec flyte-devbox kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml ...
 # 30000 - Docker Registry
 # 30001 - DB
 # 30002 - RustFS
@@ -146,14 +147,10 @@ start:
 	[ -n "$(shell docker volume ls --filter name=^flyte-devbox$$ --format {{.Name}})" ] || \
 		docker volume create flyte-devbox
 	@if [ -z "$(shell docker ps --filter name=^flyte-devbox$$ --format {{.Names}})" ]; then \
-		rm -f $(PWD)/.kube/kubeconfig; \
 		docker run --detach --rm --privileged --name flyte-devbox \
 			--add-host "host.docker.internal:host-gateway" \
 			--env FLYTE_DEV=$(FLYTE_DEV) \
-			--env K3S_KUBECONFIG_OUTPUT=/.kube/kubeconfig \
-			--volume $(PWD)/.kube:/.kube \
-				--volume flyte-devbox:/var/lib/flyte/storage \
-			--publish "6443":"6443" \
+			--volume flyte-devbox:/var/lib/flyte/storage \
 			--publish "30000:30000" \
 			--publish "30001:5432" \
 			--publish "30002:30002" \
@@ -161,19 +158,8 @@ start:
 			--publish "30081:30081" \
 			$(FLYTE_DEVBOX_IMAGE); \
 	fi
-	@echo "Waiting for kubeconfig..."
-	@until [ -s $(PWD)/.kube/kubeconfig ]; do sleep 1; done
-	@# On WSL, the bind-mounted kubeconfig may be root-owned, which makes the host-side cp fail with permission denied.
-	@docker exec flyte-devbox chown $(shell id -u):$(shell id -g) /.kube/kubeconfig
-	@mkdir -p $(HOME)/.kube
-	@if [ -f $(HOME)/.kube/config ]; then \
-		KUBECONFIG=$(PWD)/.kube/kubeconfig:$(HOME)/.kube/config kubectl config view --flatten > /tmp/kubeconfig-merged && \
-		mv /tmp/kubeconfig-merged $(HOME)/.kube/config; \
-	else \
-		cp $(PWD)/.kube/kubeconfig $(HOME)/.kube/config; \
-	fi
-	@kubectl config use-context flyte-devbox >/dev/null 2>&1 || true
-	@echo "Kubeconfig merged into ~/.kube/config"
+	@echo "Devbox up. Flyte UI: http://localhost:30080"
+	@echo "Inspect the cluster with: docker exec flyte-devbox kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml get pods -A"
 .PHONY: kubeconfig
 .SILENT: kubeconfig
 kubeconfig:
