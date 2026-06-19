@@ -7783,6 +7783,12 @@ data:
       ingressAppsPort: 30081
       scheme: http
     plugins:
+      connector-service:
+        defaultConnector:
+          endpoint: host.docker.internal:8000
+          insecure: true
+        supportedTaskTypes:
+        - armada
       k8s:
         default-env-vars:
         - FLYTE_AWS_ENDPOINT: http://rustfs-svc.flyte:9000
@@ -7813,6 +7819,13 @@ data:
         ephemeralStorage: 0
         gpu: 0
         memory: 0
+    tasks:
+      task-plugins:
+        default-for-task-types:
+          armada: connector-service
+          container: container
+          container_array: k8s-array
+          sidecar: sidecar
     webhook:
       embeddedSecretManagerConfig:
         k8sConfig:

@@ -10,6 +10,25 @@ helmCharts:
     postgresql:
       enabled: false
     flyte-binary:
+      configuration:
+        # Route Armada tasks to the connector service (c0). The connector runs on the host and is
+        # reachable from the devbox through the host gateway. Without this the connector plugin is
+        # registered but no task type maps to it, so armada tasks fall through to the pod plugin.
+        inline:
+          tasks:
+            task-plugins:
+              default-for-task-types:
+                container: container
+                container_array: k8s-array
+                sidecar: sidecar
+                armada: connector-service
+          plugins:
+            connector-service:
+              defaultConnector:
+                endpoint: host.docker.internal:8000
+                insecure: true
+              supportedTaskTypes:
+              - armada
       deployment:
         waitForDB:
           image:
